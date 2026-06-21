@@ -1,0 +1,6 @@
+{
+  "name": "Termux SSH PTY",
+  "description": "Professional browser-based SSH PTY terminal for Termux using xterm.js and Fira Code. Optimized for Android with a clean dual-tab workflow.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PTY Shell - Terminal</title>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@300;400;500&family=Inter:wght@400;600&family=Open+Sans:wght@600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #121212;
+            --bg-panel: #1e1e1e;
+            --bg-header: #252526;
+            --accent: #007acc;
+            --border: #2b2b2b;
+            --text: #ffffff;
+            --text-muted: #cccccc;
+            --font-mono: 'Fira Code', monospace;
+            --font-inter: 'Inter', sans-serif;
+            --font-opensans: 'Open Sans', sans-serif;
+            --font-ui: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        * { box-sizing: border-box; }
+        body, html {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-dark);
+            color: var(--text);
+            font-family: var(--font-ui);
+            overflow: hidden;
+        }
+
+        /* VS Code Style Header */
+        .activity-bar {
+            height: 30px;
+            background-color: var(--bg-header);
+            display: flex;
+            align-items: center;
+            border-bottom: 1px solid var(--border);
+            user-select: none;
+        }
+        .tab {
+            height: 100%;
+            padding: 0 15px;
+            display: flex;
+            align-items: center;
+            font-size: 11px;
+            font-family: var(--font-inter);
+            color: var(--text-muted);
+            cursor: pointer;
+            border-right: 1px solid var(--border);
+            background-color: #2d2d2d;
+            transition: background 0.2s;
+        }
+        .tab.active {
+            background-color: var(--bg-dark);
+            color: #fff;
+            border-top: 1px solid var(--accent);
+        }
+
+        /* Views */
+        .view {
+            display: none;
+            height: calc(100% - 30px);
+            width: 100%;
+            position: relative;
+        }
+        .view.active {
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Setup Content */
+        .setup-pane {
+            flex: 1;
+            width: 100%;
+            height: 100%;
+            background: var(--bg-panel);
+            padding: 40px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+        .setup-form {
+            width: 100%;
+            max-width: 320px;
+        }
+        .setup-pane h2 {
+            font-size: 14px;
+            margin: 0 0 32px 0;
+            color: #fff;
+            font-weight: 600;
+            font-family: var(--font-opensans);
+            text-align: center;
+            letter-spacing: 0.5px;
+        }
+        .field { margin-bottom: 18px; }
+        .field-row {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 18px;
+        }
+        .field-row .field { margin-bottom: 0; flex: 3; }
+        .field-row .field.port { flex: 1; }
+        
+        .field label {
+            display: block;
+            font-size: 10px;
+            color: #fff;
+            margin-bottom: 6px;
+        }
+        .field input {
+            width: 100%;
+            background: #252526;
+            border: 1px solid #333333;
+            color: #fff;
+            padding: 6px 8px;
+            font-size: 11px;
+            border-radius: 2px;
+            outline: none;
+        }
+        .field-password {
+            position: relative;
+        }
+        .field-password input {
+            padding-right: 35px;
+        }
+        .toggle-password {
+            position: absolute;
+            right: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: #fff;
+            cursor: pointer;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .toggle-password:hover { color: #fff; }
+        .toggle-password svg { width: 14px; height: 14px; }
+
+        .action-btn {
+            background: var(--accent);
+            color: #fff;
+            border: none;
+            padding: 10px;
+            width: 100%;
+            font-size: 11px;
+            font-weight: 600;
+            font-family: var(--font-ui);
+            cursor: pointer;
+            border-radius: 2px;
+            margin-top: 24px;
+            letter-spacing: 0.5px;
+        }
+
+        /* How-To Guide (Inside a Box) */
+        .guide {
+            margin: 48px auto 0;
+            font-size: 11px;
+            color: #fff;
+            text-align: center;
+            line-height: 1.6;
+            max-width: 280px;
+            padding: 16px;
+            border: 1px dashed #444;
+            border-radius: 4px;
+            background: rgba(255, 255, 255, 0.02);
+            font-family: var(--font-ui);
+        }
+        .guide b { color: var(--accent); }
+
+        /* Terminal View */
+        #terminal-area {
+            flex: 1;
+            background: #000;
+            padding: 20px;
+            overflow-y: auto;
+            font-family: var(--font-mono);
+            font-size: 13px;
+            line-height: 1.5;
+            white-space: pre-wrap;
+            word-break: break-all;
+            outline: none;
+            color: #00ff00;
+        }
+        #terminal-area::-webkit-scrollbar { width: 8px; }
+        #terminal-area::-webkit-scrollbar-thumb { background: #222; }
+
+        .status-bar {
+            height: 20px;
+            background: var(--accent);
+            color: #fff;
+            font-size: 10px;
+            display: flex;
+            align-items: center;
+            padding: 0 10px;
+            font-family: var(--font-ui);
+        }
+
+        /* Hidden Input for Keyboard Control */
+        #pty-input {
+            position: absolute;
+            left: -9999px;
+        }
+
+        .cursor {
+            display: inline-block;
+            width: 7px;
+            height: 14px;
+            background: #fff;
+            vertical-align: middle;
+            animation: blink 1s step-end infinite;
+        }
+        @keyframes blink { 50% { opacity: 0; } }
+    </style>
+</head>
+<body>
+
+    <div class="activity-bar">
+        <div class="tab active" onclick="setView('setup')">Config</div>
+        <div class="tab" onclick="setView('terminal')">Terminal</div>
+    </div>
+
+    <!-- Setup Tab -->
+    <div id="setup-view" class="view active">
+        <div class="setup-pane">
+            <div class="setup-form">
+                <h2>ReversX</h2>
+                <div class="field-row">
+                    <div class="field">
+                        <label>Host</label>
+                        <input type="text" id="host" value="127.0.0.1">
+                    </div>
+                    <div class="field port">
+                        <label>Port</label>
+                        <input type="number" id="port" value="8022">
+                    </div>
+                </div>
+                <div class="field">
+                    <label>Username</label>
+                    <input type="text" id="user" value="termux">
+                </div>
+                <div class="field">
+                    <label>Password</label>
+                    <div class="field-password">
+                        <input type="password" id="pass" placeholder="SSH Password">
+                        <button type="button" class="toggle-password" onclick="togglePassword()" title="Toggle Password">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                <circle cx="12" cy="12" r="3"></circle>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                <button class="action-btn" onclick="startSession()">Connect Session</button>
+                <div class="guide">
+                    To connect, ensure <b>sshd</b> is running in Termux. 
+                    Default port is usually <b>8022</b>.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Terminal Tab -->
+    <div id="terminal-view" class="view">
+        <div id="terminal-area" tabindex="0">Connecting...</div>
+        <div class="status-bar">
+            <span id="label-status">IDLE</span>
+            <span style="margin-left: auto;" id="label-info">SSH: NONE</span>
+        </div>
+    </div>
+
+    <textarea id="pty-input" autofocus></textarea>
+
+    <script>
+        const terminal = document.getElementById('terminal-area');
+        const input = document.getElementById('pty-input');
+        const labelStatus = document.getElementById('label-status');
+        const labelInfo = document.getElementById('label-info');
+        
+        let ws = null;
+        let ptyBuffer = "";
+
+        function togglePassword() {
+            const passInput = document.getElementById('pass');
+            const type = passInput.getAttribute('type') === 'password' ? 'text' : 'password';
+            passInput.setAttribute('type', type);
+        }
+
+        function setView(view) {
+            document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            
+            if (view === 'setup') {
+                document.getElementById('setup-view').classList.add('active');
+                document.querySelector('.tab:nth-child(1)').classList.add('active');
+            } else {
+                document.getElementById('terminal-view').classList.add('active');
+                document.querySelector('.tab:nth-child(2)').classList.add('active');
+                input.focus();
+            }
+        }
+
+        // Custom Lightweight Terminal Renderer
+        function render(data) {
+            // Handle basic ANSI Escape Codes (Minimal implementation for "Xterm Alternative")
+            // 1. Strip advanced codes or handle basic colors
+            let processed = data
+                .replace(/\u001b\[H|\u001b\[2J/g, () => { ptyBuffer = ""; return ""; }) // Clear Screen
+                .replace(/\u001b\[[0-9;]*m/g, '') // Strip colors for now to keep it lightweight
+                .replace(/\u001b\[[0-9;]*[ABCDEFGHJK]/g, '') // Strip cursor motions
+                .replace(/\u001b\][0-9;]*\u0007/g, ''); // Strip OSC sequences
+
+            ptyBuffer += processed;
+
+            // Keep buffer manageable
+            if (ptyBuffer.length > 20000) ptyBuffer = ptyBuffer.slice(-20000);
+            
+            terminal.innerText = ptyBuffer;
+            terminal.scrollTop = terminal.scrollHeight;
+        }
+
+        function startSession() {
+            const host = document.getElementById('host').value;
+            const port = document.getElementById('port').value;
+            const user = document.getElementById('user').value;
+            const pass = document.getElementById('pass').value;
+
+            if (ws) ws.close();
+            ptyBuffer = "";
+            terminal.innerText = "Initializing SSH...";
+            
+            const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            ws = new WebSocket(`${proto}//${location.host}`);
+
+            ws.onopen = () => {
+                labelStatus.innerText = "CONNECTED";
+                labelInfo.innerText = `SSH: ${user}@${host}`;
+                ws.send(JSON.stringify({
+                    type: 'init',
+                    host, port, username: user, password: pass,
+                    rows: 24, cols: 80
+                }));
+                setView('terminal');
+                // Set initial clean prompt
+                ptyBuffer = `${user}@termux:~$ `;
+                terminal.innerText = ptyBuffer;
+            };
+
+            ws.onmessage = (e) => {
+                const msg = JSON.parse(e.data);
+                if (msg.type === 'data') {
+                    render(msg.data);
+                } else if (msg.type === 'status') {
+                    labelStatus.innerText = msg.data;
+                } else if (msg.type === 'error') {
+                    render(`\n[ERROR] ${msg.data}\n`);
+                }
+            };
+
+            ws.onclose = () => {
+                labelStatus.innerText = "CLOSED";
+                render('\n[Session Closed]\n');
+            };
+        }
+
+        // Input Capture
+        terminal.onclick = () => input.focus();
+        input.oninput = (e) => {
+            if (ws?.readyState === 1) {
+                ws.send(JSON.stringify({ type: 'input', data: e.target.value }));
+                e.target.value = "";
+            }
+        };
+
+        // Keyboard Special Keys
+        document.addEventListener('keydown', (e) => {
+            if (ws?.readyState !== 1) return;
+
+            let char = "";
+            if (e.key === 'Enter') char = '\r';
+            else if (e.key === 'Backspace') char = '\u007f';
+            else if (e.key === 'Tab') { e.preventDefault(); char = '\t'; }
+            else if (e.key === 'ArrowUp') char = '\u001b[A';
+            else if (e.key === 'ArrowDown') char = '\u001b[B';
+            else if (e.key === 'ArrowRight') char = '\u001b[C';
+            else if (e.key === 'ArrowLeft') char = '\u001b[D';
+            else if (e.ctrlKey) {
+                const code = e.key.toUpperCase().charCodeAt(0);
+                if (code >= 65 && code <= 90) char = String.fromCharCode(code - 64);
+            }
+
+            if (char) ws.send(JSON.stringify({ type: 'input', data: char }));
+        });
+    </script>
+</body>
+</html>
