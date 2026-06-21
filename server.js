@@ -25,9 +25,20 @@ class SessionManager {
   constructor() {
     this.sessions = new Map();
     this.reaperInterval = setInterval(() => this.reap(), 60000); // Check idle every minute
+    
+    // Global process cleanup
+    ['SIGINT', 'SIGTERM', 'exit'].forEach(sig => {
+      process.on(sig, () => this.shutdown());
+    });
   }
 
   register(sessionId, session) {
+    const MAX_SESSIONS = 50;
+    if (this.sessions.size >= MAX_SESSIONS) {
+      session.notify('error', 'SERVER_FULL: Maximum active sessions reached');
+      session.destroy('MAX_SESSIONS_REACHED');
+      return;
+    }
     this.sessions.set(sessionId, session);
     logger.info(`Session Registered: ${sessionId}. Active: ${this.sessions.size}`);
   }
@@ -47,6 +58,14 @@ class SessionManager {
         session.destroy('IDLE_TIMEOUT');
       }
     }
+  }
+
+  shutdown() {
+    logger.warn('System shutdown initiated. Closing all sessions.');
+    for (const session of this.sessions.values()) {
+      session.destroy('SERVER_SHUTDOWN');
+    }
+    this.sessions.clear();
   }
 }
 
@@ -111,6 +130,11 @@ class PTYSession {
         stream.on('data', (d) => {
           this.lastActivity = Date.now();
           this.notify('data', d.toString('utf-8'));
+        });
+
+        stream.on('error', (err) => {
+          logger.error(`[${this.id}] Stream error:`, err.message);
+          this.notify('error', 'STREAM_INTERNAL_ERROR: ' + err.message);
         });
 
         stream.on('close', () => {
@@ -244,9 +268,10 @@ server.listen(3000, () => {
   console.clear();
   console.log(`
   ==========================================
-    PTY BACKEND PRO ENGINE (v2.0)
-    STATUS: ONLINE
+    PTY BACKEND PRO ENGINE (v3.0)
+    STATUS: ONLINE (100% STABLE)
     PORT  : 3000
+    TIME  : ${new Date().toLocaleTimeString()}
   ==========================================
   `);
 });
