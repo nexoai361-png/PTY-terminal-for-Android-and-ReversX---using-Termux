@@ -332,8 +332,8 @@
                 </div>
                 <button class="action-btn" onclick="startSession()">Connect Session</button>
                 <div class="guide">
-                    To connect, ensure <b>sshd</b> is running in Termux. 
-                    Default port is usually <b>8022</b>.
+                    To ensure work persists even after disconnection, use <b>tmux</b> or <b>screen</b> on your remote server. <br><br>
+                    <b>Auto-Resume:</b> We save your session token locally. If you refresh or close the tab, we will try to reconnect automatically!
                 </div>
             </div>
         </div>
@@ -376,6 +376,7 @@
         // Initialize Xterm.js with high-contrast Pro theme
         const term = new window.Terminal({
             cursorBlink: true,
+            convertEol: true,
             theme: {
                 background: '#000000',
                 foreground: '#f8f8f8',
@@ -411,6 +412,12 @@
         term.loadAddon(webLinksAddon);
         term.open(container);
         
+        // Handle initial fit
+        setTimeout(() => fitAddon.fit(), 100);
+
+        let ws = null;
+        let heartbeatInterval = null;
+
         // Load Saved Credentials
         window.addEventListener('DOMContentLoaded', () => {
             const saved = localStorage.getItem('ssh_prefs');
@@ -424,11 +431,11 @@
             }
         });
 
-        // Handle initial fit
-        setTimeout(() => fitAddon.fit(), 100);
-
-        let ws = null;
-        let heartbeatInterval = null;
+        term.onData(data => {
+            if (ws?.readyState === 1) {
+                ws.send(JSON.stringify({ type: 'input', data }));
+            }
+        });
 
         function updateUIStatus(status, type = 'default') {
             labelStatus.innerText = status;
@@ -468,6 +475,15 @@
         function disconnectSession() {
             if (ws) ws.close();
             setView('setup');
+        }
+
+        function clearBrowsingSession() {
+            if (confirm("This will permanently clear your session token on this device. Your remote SSH/Tmux session will persist. Continue?")) {
+                localStorage.removeItem('ssh_active_session');
+                disconnectSession();
+                term.reset();
+                term.write('\x1b[33m[SYSTEM] Session info cleared. Form reset.\x1b[0m\r\n');
+            }
         }
 
         function copyTerminalText() {
@@ -513,32 +529,65 @@
 
             // Save preferences
             localStorage.setItem('ssh_prefs', JSON.stringify({ host, port, user }));
+            
+            // Clear any previous active session when starting a new one
+            localStorage.removeItem('ssh_active_session');
 
             if (ws) ws.close();
             if (heartbeatInterval) clearInterval(heartbeatInterval);
-
-            term.reset();
-            term.write('\x1b[36m[SYSTEM] Initializing Pro SSH Engine...\r\n\x1b[0m');
-            updateUIStatus('CONNECTING', 'connecting');
             
+            setView('terminal');
+
+            initWSConnection(() => {
+                // Ensure fit is correct after view is set
+                setTimeout(() => {
+                    fitAddon.fit();
+                    ws.send(JSON.stringify({
+                        type: 'init',
+                        host, port, username: user, password: pass,
+                        rows: term.rows, cols: term.cols
+                    }));
+                }, 100);
+            });
+        }
+
+        function tryAttachSession() {
+            const saved = localStorage.getItem('ssh_active_session');
+            if (!saved) return;
+
+            try {
+                const session = JSON.parse(saved);
+                if (!session.id || !session.token) return;
+
+                term.write('\x1b[36m[SYSTEM] Attempting to resume previous session...\r\n\x1b[0m');
+                updateUIStatus('RESUMING', 'connecting');
+                setView('terminal');
+
+                initWSConnection(() => {
+                    ws.send(JSON.stringify({
+                        type: 'attach',
+                        id: session.id,
+                        token: session.token
+                    }));
+                });
+            } catch (e) {
+                localStorage.removeItem('ssh_active_session');
+            }
+        }
+
+        function initWSConnection(onOpenCallback) {
             const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
             ws = new WebSocket(`${proto}//${location.host}`);
             
             ws.onopen = () => {
                 updateUIStatus('WS_OPEN', 'online');
-                labelInfo.innerText = `${user}@${host}:${port}`;
+                if (onOpenCallback) onOpenCallback();
                 
-                // Start heartbeat to keep connection alive
+                // Start heartbeat
+                if (heartbeatInterval) clearInterval(heartbeatInterval);
                 heartbeatInterval = setInterval(() => {
                     if (ws.readyState === 1) ws.send(JSON.stringify({ type: 'heartbeat' }));
                 }, 25000);
-
-                ws.send(JSON.stringify({
-                    type: 'init',
-                    host, port, username: user, password: pass,
-                    rows: term.rows, cols: term.cols
-                }));
-                setView('terminal');
             };
 
             ws.onmessage = (e) => {
@@ -550,6 +599,13 @@
                     if (msg.data === 'READY') {
                         term.write('\x1b[32m[SYSTEM] Channel Secure. Welcome to ReversX.\r\n\x1b[0m');
                     }
+                } else if (msg.type === 'session_info') {
+                    localStorage.setItem('ssh_active_session', JSON.stringify(msg.data));
+                    labelInfo.innerText = `${document.getElementById('user').value}@${document.getElementById('host').value}`;
+                } else if (msg.type === 'session_expired') {
+                    localStorage.removeItem('ssh_active_session');
+                    setView('setup');
+                    alert("Session has expired or server restarted.");
                 } else if (msg.type === 'error') {
                     term.write(`\r\n\x1b[31m[ENGINE_ERROR] ${msg.data}\x1b[0m\r\n`);
                     updateUIStatus('ERROR', 'error');
@@ -560,7 +616,7 @@
 
             ws.onclose = () => {
                 updateUIStatus('DISCONNECTED', 'error');
-                term.write('\r\n\x1b[31m[SYSTEM] Connection terminated by remote point.\x1b[0m\r\n');
+                term.write('\r\n\x1b[31m[SYSTEM] Connection terminated (or tab closed).\x1b[0m\r\n');
                 if (heartbeatInterval) clearInterval(heartbeatInterval);
             };
 
@@ -568,13 +624,16 @@
                 updateUIStatus('WS_ERROR', 'error');
                 term.write('\r\n\x1b[31m[SYSTEM] WebSocket circuit failure.\x1b[0m\r\n');
             };
-
-            term.onData(data => {
-                if (ws?.readyState === 1) {
-                    ws.send(JSON.stringify({ type: 'input', data }));
-                }
-            });
         }
+
+        // Auto-resume on load
+        window.addEventListener('load', () => {
+            tryAttachSession();
+        });
+        
+        // Remove individual logic from startSession which is now in tryAttachSession / initWSConnection
+        // We need to keep the UI parts.
+
     </script>
 </body>
 </html>

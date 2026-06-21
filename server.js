@@ -2,6 +2,7 @@ import express from 'express';
 import { createServer } from 'http';
 import { WebSocketServer } from 'ws';
 import { Client } from 'ssh2';
+import { StringDecoder } from 'node:string_decoder';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -43,6 +44,10 @@ class SessionManager {
     logger.info(`Session Registered: ${sessionId}. Active: ${this.sessions.size}`);
   }
 
+  get(sessionId) {
+    return this.sessions.get(sessionId);
+  }
+
   unregister(sessionId) {
     if (this.sessions.has(sessionId)) {
       this.sessions.delete(sessionId);
@@ -72,25 +77,56 @@ class SessionManager {
 const manager = new SessionManager();
 
 class PTYSession {
-  constructor(socket) {
+  constructor(socket = null) {
     this.id = Math.random().toString(36).substring(2, 9);
+    this.token = Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
     this.ws = socket;
     this.client = new Client();
     this.stream = null;
     this.isDead = false;
     this.lastActivity = Date.now();
     this.config = null;
+    this.reapTimer = null;
+    this.decoder = new StringDecoder('utf8');
     
     manager.register(this.id, this);
   }
 
   isIdle(now) {
-    const IDLE_LIMIT = 30 * 60 * 1000; // 30 minutes
+    const IDLE_LIMIT = 60 * 60 * 1000; // Increase to 60 minutes for persistence
     return (now - this.lastActivity) > IDLE_LIMIT;
   }
 
-  notify(type, data) {
+  attach(socket) {
+    logger.info(`[${this.id}] Re-attaching to session`);
+    if (this.reapTimer) {
+      clearTimeout(this.reapTimer);
+      this.reapTimer = null;
+    }
+    this.ws = socket;
+    this.lastActivity = Date.now();
+    this.notify('status', 'READY');
+    this.notify('session_info', { id: this.id, token: this.token });
+    // Re-send current state if possible? 
+    // Usually, the terminal buffer is on the client. 
+    // But we can trigger a "sync" if needed.
+    this.notify('data', '\r\n\x1b[33m[SYSTEM] Reconnected to session.\x1b[0m\r\n');
+  }
+
+  detach() {
     if (this.isDead) return;
+    logger.info(`[${this.id}] Session detached (WS closed). Waiting for re-attachment...`);
+    this.ws = null;
+    
+    // Set a 5-minute grace period to re-attach before destroying
+    this.reapTimer = setTimeout(() => {
+      logger.warn(`[${this.id}] Re-attachment grace period expired.`);
+      this.destroy('DETACH_TIMEOUT');
+    }, 5 * 60 * 1000);
+  }
+
+  notify(type, data) {
+    if (this.isDead || !this.ws) return;
     if (this.ws.readyState === 1) {
       try {
         this.ws.send(JSON.stringify({ type, data }));
@@ -126,10 +162,14 @@ class PTYSession {
         
         this.stream = stream;
         this.notify('status', 'READY');
+        this.notify('session_info', { id: this.id, token: this.token });
+
+        // Ensure resizing is stable by applying after a tiny delay
+        setTimeout(() => this.resize(this.config.cols, this.config.rows), 200);
 
         stream.on('data', (d) => {
           this.lastActivity = Date.now();
-          this.notify('data', d.toString('utf-8'));
+          this.notify('data', this.decoder.write(d));
         });
 
         stream.on('error', (err) => {
@@ -143,7 +183,7 @@ class PTYSession {
         });
 
         stream.stderr.on('data', (d) => {
-          this.notify('data', d.toString('utf-8'));
+          this.notify('data', this.decoder.write(d));
         });
       });
     });
@@ -224,40 +264,56 @@ wss.on('connection', (ws, req) => {
   const ip = req.socket.remoteAddress;
   logger.info(`New WebSocket Connection from ${ip}`);
   
-  const session = new PTYSession(ws);
+  let session = null;
 
   ws.on('message', (msg) => {
     try {
       const p = JSON.parse(msg);
       switch (p.type) {
+        case 'attach':
+          const existing = manager.get(p.id);
+          if (existing && existing.token === p.token && !existing.isDead) {
+            session = existing;
+            session.attach(ws);
+          } else {
+            ws.send(JSON.stringify({ type: 'error', data: 'INVALID_SESSION: Session not found or expired' }));
+            ws.send(JSON.stringify({ type: 'session_expired' }));
+          }
+          break;
         case 'init': 
+          if (session) session.destroy('NEW_INIT_ON_EXISTING');
+          session = new PTYSession(ws);
           session.connect(p); 
           break;
         case 'input': 
-          session.write(p.data); 
+          if (session) session.write(p.data); 
           break;
         case 'resize': 
-          session.resize(p.cols, p.rows); 
+          if (session) session.resize(p.cols, p.rows); 
           break;
         case 'heartbeat':
-          session.lastActivity = Date.now();
+          if (session) session.lastActivity = Date.now();
           break;
         default:
-          logger.warn(`[${session.id}] Unknown message type: ${p.type}`);
+          logger.warn(`Unknown message type: ${p.type}`);
       }
     } catch (e) {
-      logger.error(`[${session.id}] Message parse error:`, e.message);
+      logger.error('Message parse error:', e.message);
     }
   });
 
   ws.on('close', () => {
-    logger.info(`[${session.id}] WebSocket closed by client`);
-    session.destroy('WS_CLOSED');
+    if (session) {
+      logger.info(`[${session.id}] WebSocket closed`);
+      session.detach();
+    }
   });
 
   ws.on('error', (err) => {
-    logger.error(`[${session.id}] WebSocket error:`, err.message);
-    session.destroy('WS_ERROR');
+    if (session) {
+      logger.error(`[${session.id}] WebSocket error:`, err.message);
+      session.detach();
+    }
   });
 });
 
