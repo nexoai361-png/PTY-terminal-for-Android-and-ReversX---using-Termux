@@ -9,6 +9,7 @@
     <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/xterm-addon-web-links@0.9.0/lib/xterm-addon-web-links.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xterm-addon-search@0.13.0/lib/xterm-addon-search.js"></script>
     <style>
         :root {
             --bg-dark: #0a0a0a;
@@ -256,10 +257,73 @@
 
         #terminal-container {
             flex: 1;
-            background: #000;
             width: 100%;
             height: 100%;
             overflow: hidden;
+            position: relative;
+            z-index: 2;
+        }
+
+        /* H4CK3R Theme Styles */
+        .hacker-banner {
+            display: none;
+            background: #1a1b26;
+            padding: 15px 0;
+            border-bottom: 1px solid #ff00ff22;
+            text-align: center;
+            font-family: 'Fira Code', monospace;
+            user-select: none;
+        }
+        .theme-hacker .hacker-banner {
+            display: block;
+        }
+        .banner-text {
+            font-size: 42px;
+            font-weight: 900;
+            line-height: 1;
+            margin: 10px 0;
+            background: linear-gradient(180deg, #ff9e64 0%, #ff007c 50%, #7aa2f7 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            filter: drop-shadow(0 0 10px rgba(255, 0, 124, 0.4));
+            text-transform: uppercase;
+        }
+        .banner-ornament {
+            color: #565f89;
+            font-size: 14px;
+            letter-spacing: 2px;
+        }
+        
+        .extra-keys {
+            display: none;
+            background: #16161e;
+            padding: 5px;
+            gap: 5px;
+            overflow-x: auto;
+            border-top: 1px solid #252525;
+        }
+        .theme-hacker .extra-keys {
+            display: flex;
+        }
+        .key-btn {
+            background: #24283b;
+            color: #a9b1d6;
+            border: 1px solid #414868;
+            padding: 8px 15px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: all 0.2s;
+        }
+        .key-btn:hover {
+            background: #414868;
+            color: #fff;
+        }
+        .key-btn:active {
+            background: #7aa2f7;
+            transform: scale(0.95);
         }
         .xterm .xterm-viewport {
             background-color: #000 !important;
@@ -330,6 +394,10 @@
                         </button>
                     </div>
                 </div>
+                <div class="field">
+                    <label>Persistent Token Check</label>
+                    <button class="action-btn" style="margin-top: 0; background: #222; color: #aaa; padding: 10px;" onclick="clearBrowsingSession()">Reset Local Link</button>
+                </div>
                 <button class="action-btn" onclick="startSession()">Connect Session</button>
                 <div class="guide">
                     To ensure work persists even after disconnection, use <b>tmux</b> or <b>screen</b> on your remote server. <br><br>
@@ -341,29 +409,69 @@
 
     <!-- Terminal Tab -->
     <div id="terminal-view" class="view">
+        <div class="hacker-banner">
+            <div class="banner-ornament">╔═════════════════════════  »  ————  «•● ❊ ●»  ————  «  ═════════════════════════╗</div>
+            <div class="banner-text">H4CK3R</div>
+            <div class="banner-ornament">╚═══════════════════  ✦  :        『』  『+』  『』       :  ✦  ═══════════════════╝</div>
+        </div>
         <div class="terminal-toolbar">
             <button class="toolbar-btn" onclick="copyTerminalText()" title="Copy entire buffer">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg>
-                Copy All
+                Copy
             </button>
             <button class="toolbar-btn" onclick="pasteTerminalText()" title="Paste from clipboard">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><polyline points="8 17 12 21 16 17"></polyline><line x1="12" y1="12" x2="12" y2="21"></line></svg>
                 Paste
             </button>
-            <button class="toolbar-btn" onclick="term.clear(); term.focus()" title="Clear terminal screen">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-                Clear
+            
+            <div style="width: 1px; height: 16px; background: #333; margin: 0 5px;"></div>
+
+            <button class="toolbar-btn" onclick="adjustFontSize(-1)" title="Decrease font size">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                A-
             </button>
+            <button class="toolbar-btn" onclick="adjustFontSize(1)" title="Increase font size">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                A+
+            </button>
+            
+            <button class="toolbar-btn" onclick="triggerManualResize()" title="Force layout refit">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6"></path><path d="M9 21H3v-6"></path><path d="M21 3l-7 7"></path><path d="M3 21l7-7"></path></svg>
+                Refit
+            </button>
+            <button class="toolbar-btn" onclick="toggleImmersive()" title="Toggle fullscreen immersive mode">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path></svg>
+                Immersive
+            </button>
+            <button class="toolbar-btn" onclick="openSearch()" title="Search in terminal">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                Find
+            </button>
+
             <button class="toolbar-btn danger" style="margin-left: auto" onclick="disconnectSession()">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"></path><line x1="12" y1="2" x2="12" y2="12"></line></svg>
-                Disconnect
+                Exit
             </button>
         </div>
         <div id="terminal-container"></div>
+        <div class="extra-keys">
+            <button class="key-btn" onclick="sendKey('/')">/</button>
+            <button class="key-btn" onclick="sendKey('ls\n')">LS</button>
+            <button class="key-btn" onclick="sendKey('$')">$</button>
+            <button class="key-btn" onclick="sendKey('~')">~</button>
+            <button class="key-btn" onclick="sendKey('\x1b[A')">↑</button>
+            <button class="key-btn" onclick="sendKey('\x03')">CTRL+C</button>
+            <button class="key-btn" onclick="sendKey('\x1b')">ESC</button>
+            <button class="key-btn" onclick="sendKey('exit\n')">EXIT</button>
+            <button class="key-btn" onclick="sendKey('*')">*</button>
+            <button class="key-btn" onclick="sendKey('clear\n')">CLEAR</button>
+            <button class="key-btn" onclick="sendKey('\t')">TAB</button>
+        </div>
         <div class="status-bar">
             <div id="status-dot" class="status-dot"></div>
             <b>ENGINE</b> <span id="label-status">IDLE</span>
             <span style="margin-left: 15px;" id="label-info">NOT CONNECTED</span>
+            <span style="margin-left: auto; color: #444;" id="label-dims">-- x --</span>
         </div>
     </div>
 
@@ -372,44 +480,43 @@
         const labelStatus = document.getElementById('label-status');
         const labelInfo = document.getElementById('label-info');
         const statusDot = document.getElementById('status-dot');
+        const labelDims = document.getElementById('label-dims');
         
-        // Initialize Xterm.js with high-contrast Pro theme
+        const THEME_HACKER = {
+            background: '#0d0f14', foreground: '#7aa2f7', cursor: '#ff007c', selectionBackground: 'rgba(255, 0, 124, 0.3)',
+            black: '#1a1b26', red: '#f7768e', green: '#9ece6a', yellow: '#e0af68', blue: '#7aa2f7', magenta: '#bb9af7', cyan: '#7dcfff', white: '#a9b1d6',
+            brightBlack: '#414868', brightRed: '#ff9e64', brightGreen: '#b4f9f8', brightYellow: '#f0c674', brightBlue: '#2ac3de', brightMagenta: '#ff007c', brightCyan: '#73daca', brightWhite: '#c0caf5'
+        };
+
+        function sendKey(key) {
+            if (ws && ws.readyState === 1) {
+                ws.send(key);
+                term.focus();
+            }
+        }
+
+        // Initialize Xterm.js with permanent H4CK3R theme
         const term = new window.Terminal({
             cursorBlink: true,
             convertEol: true,
-            theme: {
-                background: '#000000',
-                foreground: '#f8f8f8',
-                cursor: '#007acc',
-                selection: 'rgba(0, 122, 204, 0.3)',
-                black: '#000000',
-                red: '#ff5555',
-                green: '#50fa7b',
-                yellow: '#f1fa8c',
-                blue: '#6272ff',
-                magenta: '#ff79c6',
-                cyan: '#8be9fd',
-                white: '#ffffff',
-                brightBlack: '#4d4d4d',
-                brightRed: '#ff6e67',
-                brightGreen: '#5af78e',
-                brightYellow: '#f4f99d',
-                brightBlue: '#caa9fa',
-                brightMagenta: '#ff92d0',
-                brightCyan: '#9aedfe',
-                brightWhite: '#ffffff'
-            },
-            fontFamily: '"Fira Code", monospace',
+            theme: THEME_HACKER,
             fontSize: 14,
-            fontWeight: '400',
+            fontFamily: '"JetBrains Mono", "Fira Code", "Cascadia Code", monospace',
+            letterSpacing: 0.5,
             lineHeight: 1.2,
-            allowProposedApi: true
+            scrollback: 10000
+        });
+
+        window.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('terminal-view').classList.add('theme-hacker');
         });
 
         const fitAddon = new window.FitAddon.FitAddon();
         const webLinksAddon = new window.WebLinksAddon.WebLinksAddon();
+        const searchAddon = new window.SearchAddon.SearchAddon();
         term.loadAddon(fitAddon);
         term.loadAddon(webLinksAddon);
+        term.loadAddon(searchAddon);
         term.open(container);
         
         // Handle initial fit
@@ -459,18 +566,45 @@
                 document.getElementById('terminal-view').classList.add('active');
                 document.querySelector('.tab:nth-child(2)').classList.add('active');
                 setTimeout(() => {
-                    fitAddon.fit();
+                    triggerManualResize();
                     term.focus();
                 }, 50);
             }
         }
 
+        function toggleImmersive() {
+            const bar = document.querySelector('.activity-bar');
+            bar.style.display = bar.style.display === 'none' ? 'flex' : 'none';
+            const views = document.querySelectorAll('.view');
+            views.forEach(v => {
+                v.style.height = bar.style.display === 'none' ? '100%' : 'calc(100% - 38px)';
+            });
+            triggerManualResize();
+        }
+
+        function openSearch() {
+            const q = prompt("Enter search query:");
+            if (q) searchAddon.findNext(q);
+        }
+
         window.addEventListener('resize', () => {
+            triggerManualResize();
+        });
+
+        function adjustFontSize(delta) {
+            const currentSize = term.options.fontSize;
+            const newSize = Math.max(8, Math.min(30, currentSize + delta));
+            term.options.fontSize = newSize;
+            triggerManualResize();
+        }
+
+        function triggerManualResize() {
             fitAddon.fit();
+            labelDims.innerText = `${term.cols} x ${term.rows}`;
             if (ws?.readyState === 1) {
                 ws.send(JSON.stringify({ type: 'resize', cols: term.cols, rows: term.rows }));
             }
-        });
+        }
 
         function disconnectSession() {
             if (ws) ws.close();
@@ -541,7 +675,7 @@
             initWSConnection(() => {
                 // Ensure fit is correct after view is set
                 setTimeout(() => {
-                    fitAddon.fit();
+                    triggerManualResize();
                     ws.send(JSON.stringify({
                         type: 'init',
                         host, port, username: user, password: pass,
