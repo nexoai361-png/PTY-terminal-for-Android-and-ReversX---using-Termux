@@ -12,19 +12,41 @@
     <script src="https://cdn.jsdelivr.net/npm/xterm-addon-search@0.13.0/lib/xterm-addon-search.js"></script>
     <style>
         :root {
-            --bg-dark: #1e1e1e;
+            --bg-main: #1e1e1e;
             --bg-panel: #252526;
             --bg-header: #2d2d2d;
             --accent: #007acc;
             --accent-hover: #0062a3;
             --border: #3c3c3c;
-            --text-white: #cccccc;
+            --text-normal: #cccccc;
             --text-bright: #ffffff;
             --text-dim: #999999;
             --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
             --font-ui: "Segoe UI", "Tahoma", "Geneva", "Verdana", sans-serif;
             --input-bg: #3c3c3c;
             --input-border: #3c3c3c;
+        }
+
+        [data-theme="monokai"] {
+            --bg-main: #272822;
+            --bg-panel: #1e1f1c;
+            --bg-header: #272822;
+            --accent: #a6e22e;
+            --accent-hover: #e6db74;
+            --border: #3e3d32;
+            --text-normal: #f8f8f2;
+            --input-bg: #3e3d32;
+        }
+
+        [data-theme="one-dark"] {
+            --bg-main: #282c34;
+            --bg-panel: #21252b;
+            --bg-header: #282c34;
+            --accent: #61afef;
+            --accent-hover: #98c379;
+            --border: #181a1f;
+            --text-normal: #abb2bf;
+            --input-bg: #181a1f;
         }
 
         * { 
@@ -36,10 +58,11 @@
             height: 100%;
             margin: 0;
             padding: 0;
-            background-color: var(--bg-dark);
-            color: var(--text-white);
+            background-color: var(--bg-main);
+            color: var(--text-normal);
             font-family: var(--font-ui);
             overflow: hidden;
+            transition: background 0.15s, color 0.1s;
         }
 
         /* Custom Scrollbar */
@@ -106,7 +129,7 @@
             flex: 1;
             width: 100%;
             height: 100%;
-            background: var(--bg-dark);
+            background: var(--bg-main);
             padding: 40px 60px;
             overflow-y: auto;
             max-width: 1200px;
@@ -126,6 +149,31 @@
             font-weight: 400;
         }
         .field { margin-bottom: 24px; }
+        .kb-help {
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid var(--border);
+            max-width: 600px;
+        }
+        .kb-help h3 {
+            font-size: 16px;
+            color: var(--text-bright);
+            margin-bottom: 12px;
+            font-weight: 600;
+        }
+        .kb-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 13px;
+            padding: 6px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        .kb-key {
+            color: var(--accent);
+            font-family: var(--font-mono);
+            font-weight: 600;
+        }
+        .kb-action { color: var(--text-normal); }
         .field-row {
             display: flex;
             gap: 20px;
@@ -379,6 +427,12 @@
             z-index: 2;
         }
 
+        #terminal {
+            width: 100%;
+            height: 100%;
+            background: #1e1e1e;
+        }
+
         .xterm .xterm-viewport {
             background-color: #1e1e1e !important;
         }
@@ -476,6 +530,29 @@
                 </div>
 
                 <div class="field">
+                    <label>Terminal Theme</label>
+                    <div class="description">Choose a visual theme for the terminal and interface.</div>
+                    <div class="custom-select" id="theme-custom-select">
+                        <div class="select-trigger" onclick="toggleThemeDropdown(event)" id="current-theme-label">VS Code Dark</div>
+                        <div class="select-options" id="theme-options-list">
+                            <div class="select-option" onclick="selectTheme('default', 'VS Code Dark')" data-value="default">VS Code Dark</div>
+                            <div class="select-option" onclick="selectTheme('monokai', 'Monokai')" data-value="monokai">Monokai</div>
+                            <div class="select-option" onclick="selectTheme('one-dark', 'One Dark')" data-value="one-dark">One Dark</div>
+                            <div class="select-option" onclick="selectTheme('solarized-dark', 'Solarized Dark')" data-value="solarized-dark">Solarized Dark</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="kb-help">
+                    <h3>Pro Shortcuts</h3>
+                    <div class="kb-row"><span class="kb-action">Open Find Bar</span><span class="kb-key">Ctrl + F</span></div>
+                    <div class="kb-row"><span class="kb-action">Clear Terminal</span><span class="kb-key">Ctrl + L</span></div>
+                    <div class="kb-row"><span class="kb-action">Interrupt Process</span><span class="kb-key">Ctrl + C</span></div>
+                    <div class="kb-row"><span class="kb-action">Decrease Font</span><span class="kb-key">Alt + [-]</span></div>
+                    <div class="kb-row"><span class="kb-action">Increase Font</span><span class="kb-key">Alt + [+]</span></div>
+                </div>
+
+                <div class="field">
                     <label>Session: Management</label>
                     <div class="description">Clear local session data if you encounter connection issues.</div>
                     <button class="action-btn secondary" onclick="clearBrowsingSession()">Reset Local Link</button>
@@ -516,6 +593,7 @@
             <button class="toolbar-btn" onclick="sendSpecial('CTRL_L')" title="Clear Console (Ctrl+L)">Clear</button>
             <button class="toolbar-btn" onclick="sendCmd('\x1b')" title="Send Escape Key">Esc</button>
             <button class="toolbar-btn" onclick="sendCmd('\t')" title="Send Tab Key">Tab</button>
+            <button class="toolbar-btn" onclick="sendCmd('uname -a && uptime\r')" title="Show System Information">SysInfo</button>
 
             <button class="toolbar-btn danger" style="margin-left: auto" onclick="disconnectSession()">
                 Exit
@@ -593,14 +671,40 @@
         term.loadAddon(searchAddon);
         term.open(terminalDiv);
         
-        // Handle initial fit
-        setTimeout(() => fitAddon.fit(), 100);
+        // Use onResize as the single source of truth for synchronization
+        term.onResize(size => {
+            if (size.cols > 0 && size.rows > 0) {
+                labelDims.innerText = `${size.cols} x ${size.rows}`;
+                if (ws?.readyState === 1) {
+                    ws.send(JSON.stringify({ type: 'resize', cols: size.cols, rows: size.rows }));
+                }
+            }
+        });
 
-        // Ctrl+F to open search
+        // Handle initial fit after fonts are ready
+        if (document.fonts) {
+            document.fonts.ready.then(() => {
+                setTimeout(() => triggerManualResize(), 500);
+            });
+        } else {
+            setTimeout(() => triggerManualResize(), 500);
+        }
+
+        // Keyboard shortcuts
         term.attachCustomKeyEventHandler((e) => {
             if (e.ctrlKey && e.key === 'f') {
                 e.preventDefault();
-                openSearch();
+                if (e.type === 'keydown') openSearch();
+                return false;
+            }
+            if (e.altKey && (e.key === '=' || e.key === '+')) {
+                e.preventDefault();
+                if (e.type === 'keydown') adjustFontSize(1);
+                return false;
+            }
+            if (e.altKey && e.key === '-') {
+                e.preventDefault();
+                if (e.type === 'keydown') adjustFontSize(-1);
                 return false;
             }
             return true;
@@ -622,6 +726,12 @@
                         const option = document.querySelector(`.select-option[data-value="${data.terminalFont}"]`);
                         if (option) {
                             selectFontOption(data.terminalFont, option.innerText, false);
+                        }
+                    }
+                    if (data.terminalTheme) {
+                        const option = document.querySelector(`#theme-options-list .select-option[data-value="${data.terminalTheme}"]`);
+                        if (option) {
+                            selectTheme(data.terminalTheme, option.innerText, false);
                         }
                     }
                 } catch (e) {}
@@ -718,13 +828,60 @@
             const currentSize = term.options.fontSize;
             const newSize = Math.max(8, Math.min(30, currentSize + delta));
             term.options.fontSize = newSize;
-            triggerManualResize();
+            
+            // Wait for DOM to update font metrics
+            requestAnimationFrame(() => {
+                triggerManualResize();
+            });
         }
 
         function toggleFontDropdown(e) {
             e.stopPropagation();
+            document.querySelectorAll('.select-options').forEach(l => {
+                if (l.id !== 'font-options-list') l.classList.remove('active');
+            });
             const list = document.getElementById('font-options-list');
             list.classList.toggle('active');
+        }
+
+        function toggleThemeDropdown(e) {
+            e.stopPropagation();
+            document.querySelectorAll('.select-options').forEach(l => {
+                if (l.id !== 'theme-options-list') l.classList.remove('active');
+            });
+            const list = document.getElementById('theme-options-list');
+            list.classList.toggle('active');
+        }
+
+        const themes = {
+            'default': { background: '#1e1e1e', foreground: '#cccccc', cursor: '#aeafad' },
+            'monokai': { background: '#272822', foreground: '#f8f8f2', cursor: '#f8f8f2' },
+            'one-dark': { background: '#282c34', foreground: '#abb2bf', cursor: '#abb2bf' },
+            'solarized-dark': { background: '#002b36', foreground: '#839496', cursor: '#839496' }
+        };
+
+        function selectTheme(themeId, label, updateStorage = true) {
+            document.getElementById('current-theme-label').innerText = label;
+            document.getElementById('theme-options-list').classList.remove('active');
+            
+            // Set body attribute for CSS vars
+            if (themeId === 'default') document.body.removeAttribute('data-theme');
+            else document.body.setAttribute('data-theme', themeId);
+
+            // Update Terminal colors
+            const colors = themes[themeId] || themes['default'];
+            term.options.theme = colors;
+
+            // Mark selected
+            document.querySelectorAll('#theme-options-list .select-option').forEach(opt => {
+                opt.classList.toggle('selected', opt.getAttribute('data-value') === themeId);
+            });
+
+            if (updateStorage) {
+                const prefs = JSON.parse(localStorage.getItem('ssh_prefs') || '{}');
+                prefs.terminalTheme = themeId;
+                localStorage.setItem('ssh_prefs', JSON.stringify(prefs));
+            }
         }
 
         function selectFontOption(value, label, updateStorage = true) {
@@ -767,22 +924,35 @@
                 'CTRL_Z': '\x1a',
                 'CTRL_D': '\x04'
             };
-            if (keys[key]) sendCmd(keys[key]);
+            if (keys[key]) {
+                sendCmd(keys[key]);
+                if (key === 'CTRL_L') {
+                    // Also clear client-side buffer for immediate feedback
+                    term.clear();
+                }
+            }
         }
 
+        let resizeTimeout;
         function triggerManualResize() {
-            if (!container) return;
-            try {
-                fitAddon.fit();
-                if (term.cols > 0 && term.rows > 0) {
-                    labelDims.innerText = `${term.cols} x ${term.rows}`;
-                    if (ws?.readyState === 1) {
-                        ws.send(JSON.stringify({ type: 'resize', cols: term.cols, rows: term.rows }));
+            if (!container || !terminalDiv) return;
+            
+            clearTimeout(resizeTimeout);
+            resizeTimeout = setTimeout(() => {
+                try {
+                    if (container.offsetWidth === 0 || container.offsetHeight === 0) return;
+                    
+                    // Re-calculate layout before fit
+                    fitAddon.fit();
+                    
+                    // Ensure focus to prevent input loss
+                    if (document.activeElement?.tagName !== 'INPUT') {
+                        term.focus();
                     }
+                } catch (e) {
+                    console.warn("Resize fit failed:", e);
                 }
-            } catch (e) {
-                console.warn("Resize fit failed:", e);
-            }
+            }, 50); 
         }
 
         // Use ResizeObserver for more reliable fitting

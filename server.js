@@ -149,16 +149,21 @@ class PTYSession {
       this.lastActivity = Date.now();
       this.notify('status', 'AUTHENTICATED');
       
+      const rows = Math.max(1, parseInt(cfg.rows) || 24);
+      const cols = Math.max(1, parseInt(cfg.cols) || 80);
+
       this.client.shell({
         term: 'xterm-256color',
-        rows: parseInt(cfg.rows) || 24,
-        cols: parseInt(cfg.cols) || 80,
+        rows,
+        cols,
         env: {
           TERM: 'xterm-256color',
           COLORTERM: 'truecolor',
           LANG: 'en_US.UTF-8',
           LC_ALL: 'en_US.UTF-8',
           FORCE_COLOR: '3',
+          PAGER: 'less',
+          EDITOR: 'nano',
           ...(cfg.env || {})
         }
       }, (err, stream) => {
@@ -171,8 +176,8 @@ class PTYSession {
         this.notify('status', 'READY');
         this.notify('session_info', { id: this.id, token: this.token });
 
-        // Ensure resizing is stable by applying after a tiny delay
-        setTimeout(() => this.resize(this.config.cols, this.config.rows), 200);
+        // Force a re-sync of window size after shell is ready
+        setTimeout(() => this.resize(cols, rows), 500);
 
         stream.on('data', (d) => {
           this.lastActivity = Date.now();
@@ -189,9 +194,11 @@ class PTYSession {
           this.destroy('REMOTE_CLOSED');
         });
 
-        stream.stderr.on('data', (d) => {
-          this.notify('data', this.decoder.write(d));
-        });
+        if (stream.stderr) {
+          stream.stderr.on('data', (d) => {
+            this.notify('data', this.decoder.write(d));
+          });
+        }
       });
     });
 
