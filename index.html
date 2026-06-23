@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PTY Shell - Terminal</title>
-    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@300;400;500&family=Inter:wght@400;600&family=Open+Sans:wght@600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@300;400;500&family=Inter:wght@400;600&family=Open+Sans:wght@600&family=JetBrains+Mono:wght@400;500&family=Source+Code+Pro:wght@400;500&family=Roboto+Mono:wght@400;500&family=Ubuntu+Mono:wght@400;700&family=Inconsolata:wght@400;500&family=Anonymous+Pro:wght@400;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css" />
     <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.js"></script>
@@ -12,24 +12,24 @@
     <script src="https://cdn.jsdelivr.net/npm/xterm-addon-search@0.13.0/lib/xterm-addon-search.js"></script>
     <style>
         :root {
-            --bg-dark: #0a0a0a;
-            --bg-panel: #111111;
-            --bg-header: #161616;
+            --bg-dark: #1e1e1e;
+            --bg-panel: #252526;
+            --bg-header: #2d2d2d;
             --accent: #007acc;
-            --accent-hover: #005f9e;
-            --border: #252525;
-            --text-white: #ffffff;
-            --text-dim: #cccccc;
-            --font-mono: 'Fira Code', monospace;
-            --font-inter: 'Inter', sans-serif;
-            --font-opensans: 'Open Sans', sans-serif;
+            --accent-hover: #0062a3;
+            --border: #3c3c3c;
+            --text-white: #cccccc;
+            --text-bright: #ffffff;
+            --text-dim: #999999;
+            --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
             --font-ui: "Segoe UI", "Tahoma", "Geneva", "Verdana", sans-serif;
+            --input-bg: #3c3c3c;
+            --input-border: #3c3c3c;
         }
 
         * { 
             box-sizing: border-box; 
             -webkit-font-smoothing: antialiased;
-            -moz-osx-font-smoothing: grayscale;
         }
         
         body, html {
@@ -43,47 +43,56 @@
         }
 
         /* Custom Scrollbar */
-        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar { width: 10px; height: 10px; }
         ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
-        ::-webkit-scrollbar-thumb:hover { background: #444; }
+        ::-webkit-scrollbar-thumb { background: #444; }
+        ::-webkit-scrollbar-thumb:hover { background: #555; }
 
         /* VS Code Style Header */
         .activity-bar {
-            height: 38px;
-            background-color: var(--bg-header);
+            height: 35px;
+            background-color: var(--bg-panel);
             display: flex;
             align-items: center;
-            border-bottom: 1px solid var(--border);
+            border-bottom: 1px solid #1a1a1a;
             user-select: none;
+            padding-left: 0;
         }
         .tab {
             height: 100%;
-            padding: 0 18px;
+            padding: 0 16px;
             display: flex;
             align-items: center;
             font-size: 11px;
-            font-family: var(--font-inter);
             color: var(--text-dim);
             cursor: pointer;
-            border-right: 1px solid var(--border);
-            background-color: #1a1a1a;
-            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            background-color: #2d2d2d;
+            border-right: 1px solid #1a1a1a;
+            transition: none;
+            position: relative;
         }
         .tab.active {
             background-color: var(--bg-dark);
-            color: var(--text-white);
-            border-top: 2px solid var(--accent);
+            color: var(--text-bright);
+        }
+        .tab.active::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background-color: var(--accent);
         }
         .tab:hover:not(.active) {
-            background-color: #1e1e1e;
-            color: var(--text-white);
+            background-color: #2b2b2b;
+            color: var(--text-bright);
         }
 
         /* Views */
         .view {
             display: none;
-            height: calc(100% - 38px);
+            height: calc(100% - 35px);
             width: 100%;
             position: relative;
         }
@@ -97,250 +106,295 @@
             flex: 1;
             width: 100%;
             height: 100%;
-            background: radial-gradient(circle at center, #151515 0%, #0a0a0a 100%);
-            padding: 40px 20px;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
+            background: var(--bg-dark);
+            padding: 40px 60px;
             overflow-y: auto;
+            max-width: 1200px;
+            margin: 0 auto;
         }
-        @media (max-width: 480px) {
-            .setup-pane { padding: 30px 15px; justify-content: flex-start; }
-            .setup-form { max-width: 100%; }
-            .field-row { flex-direction: column; gap: 20px; }
-            .field-row .field.port { flex: none; }
-            .terminal-toolbar { gap: 8px; padding: 0 8px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        @media (max-width: 768px) {
+            .setup-pane { padding: 20px 20px; }
         }
         .setup-form {
             width: 100%;
-            max-width: 340px;
+            max-width: 600px;
         }
         .setup-pane h2 {
-            font-size: 24px;
-            margin: 0 0 36px 0;
-            color: #fff;
-            font-weight: 600;
-            font-family: var(--font-opensans);
-            text-align: center;
-            letter-spacing: -0.5px;
+            font-size: 26px;
+            margin: 0 0 24px 0;
+            color: var(--text-bright);
+            font-weight: 400;
         }
-        .field { margin-bottom: 20px; }
+        .field { margin-bottom: 24px; }
         .field-row {
             display: flex;
-            gap: 14px;
-            margin-bottom: 20px;
+            gap: 20px;
+            margin-bottom: 24px;
         }
-        .field-row .field { margin-bottom: 0; flex: 3; }
-        .field-row .field.port { flex: 1.2; }
+        .field-row .field { margin-bottom: 0; flex: 1; }
         
         .field label {
             display: block;
-            font-size: 11px;
-            color: var(--text-white);
+            font-size: 13px;
+            color: var(--text-bright);
+            margin-bottom: 4px;
+            font-weight: 700;
+        }
+        .field .description {
+            font-size: 12px;
+            color: var(--text-dim);
             margin-bottom: 8px;
-            font-family: var(--font-ui);
+            line-height: 1.4;
         }
         .field input {
             width: 100%;
-            background: #181818;
-            border: 1px solid #2a2a2a;
-            color: #fff;
-            padding: 10px 12px;
-            font-size: 12px;
-            border-radius: 4px;
+            background: var(--input-bg);
+            border: 1px solid var(--input-border);
+            color: var(--text-bright);
+            padding: 4px 8px;
+            font-size: 13px;
             outline: none;
-            transition: all 0.2s;
             font-family: var(--font-ui);
         }
         .field input:focus {
             border-color: var(--accent);
-            background: #1c1c1c;
-            box-shadow: 0 0 0 2px rgba(0, 122, 204, 0.1);
         }
         .field-password {
             position: relative;
         }
         .field-password input {
-            padding-right: 40px;
+            padding-right: 32px;
         }
         .toggle-password {
             position: absolute;
-            right: 8px;
+            right: 4px;
             top: 50%;
             transform: translateY(-50%);
             background: none;
             border: none;
-            color: #666;
+            color: #ccc;
             cursor: pointer;
             padding: 4px;
             display: flex;
             align-items: center;
             justify-content: center;
-            transition: color 0.2s;
         }
         .toggle-password:hover { color: #fff; }
-        .toggle-password svg { width: 16px; height: 16px; }
+        .toggle-password svg { width: 14px; height: 14px; }
 
         .action-btn {
             background: var(--accent);
             color: #fff;
             border: none;
-            padding: 14px;
-            width: 100%;
-            font-size: 12px;
-            font-weight: 600;
+            padding: 6px 14px;
+            width: auto;
+            min-width: 100px;
+            font-size: 13px;
             font-family: var(--font-ui);
             cursor: pointer;
-            border-radius: 4px;
-            margin-top: 28px;
-            letter-spacing: 0.5px;
-            transition: all 0.2s;
+            margin-top: 10px;
+            transition: background 0.1s;
         }
         .action-btn:hover {
             background: var(--accent-hover);
-            transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
         }
-        .action-btn:active {
-            transform: translateY(0);
+        .action-btn.secondary {
+            background: #3a3d41;
+            margin-top: 0;
+            padding: 4px 10px;
+        }
+        .action-btn.secondary:hover {
+            background: #45494e;
         }
 
         /* How-To Guide */
         .guide {
-            margin: 48px auto 0;
-            font-size: 12px;
-            color: var(--text-dim);
-            text-align: center;
-            line-height: 1.7;
-            max-width: 300px;
-            padding: 20px;
-            border: 1px dashed #333;
-            border-radius: 6px;
-            background: rgba(255, 255, 255, 0.01);
-            font-family: var(--font-ui);
+            margin-top: 40px;
+            padding: 16px;
+            background: #252526;
+            border-left: 3px solid var(--accent);
+            font-size: 13px;
+            color: var(--text-white);
+            line-height: 1.5;
         }
-        .guide b { color: var(--accent); font-weight: 600; }
+        .guide b { color: var(--text-bright); }
 
         /* Terminal View Components */
         .terminal-toolbar {
-            height: 34px;
-            background: #1a1a1a;
-            border-bottom: 1px solid var(--border);
+            height: 30px;
+            background: #2d2d2d;
+            border-bottom: 1px solid #3c3c3c;
             display: flex;
             align-items: center;
-            padding: 0 12px;
-            gap: 15px;
+            padding: 0 4px;
+            gap: 2px;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+        }
+        .terminal-toolbar::-webkit-scrollbar {
+            display: none;
         }
         .toolbar-btn {
-            background: none;
-            border: none;
-            color: #888;
-            font-size: 11px;
+            background: transparent;
+            border: 1px solid transparent;
+            color: #cccccc;
+            font-size: 10px;
             font-family: var(--font-inter);
             cursor: pointer;
             display: flex;
             align-items: center;
-            gap: 6px;
-            padding: 5px 8px;
-            border-radius: 3px;
-            transition: all 0.2s;
+            gap: 4px;
+            padding: 2px 6px;
+            border-radius: 2px;
+            transition: all 0.1s;
+            flex-shrink: 0;
+            white-space: nowrap;
         }
         .toolbar-btn:hover {
-            color: #fff;
-            background: #333;
+            color: #ffffff;
+            background: #454545;
+            border-color: #555555;
         }
         .toolbar-btn.danger:hover {
-            color: #ff5555;
-            background: rgba(255, 85, 85, 0.1);
+            color: #ffffff;
+            background: #e51400;
+            border-color: #f7311d;
+        }
+        .toolbar-separator {
+            width: 1px;
+            height: 14px;
+            background: #444444;
+            margin: 0 4px;
+            flex-shrink: 0;
+        }
+
+        .custom-select {
+            position: relative;
+            width: 100%;
+            font-family: var(--font-ui);
+        }
+        .select-trigger {
+            background: var(--input-bg);
+            border: 1px solid var(--input-border);
+            color: var(--text-bright);
+            padding: 6px 10px;
+            font-size: 13px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-radius: 2px;
+        }
+        .select-trigger:hover {
+            border-color: #555;
+        }
+        .select-trigger::after {
+            content: '▼';
+            font-size: 8px;
+            color: #888;
+        }
+        .select-options {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: #252526;
+            border: 1px solid #454545;
+            margin-top: 2px;
+            z-index: 1000;
+            display: none;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .select-options.active {
+            display: block;
+        }
+        .select-option {
+            padding: 6px 10px;
+            font-size: 13px;
+            color: #cccccc;
+            cursor: pointer;
+        }
+        .select-option:hover {
+            background: #37373d;
+            color: white;
+        }
+        .select-option.selected {
+            background: #094771;
+            color: white;
+        }
+
+        /* Search Bar */
+        #search-bar {
+            position: absolute;
+            top: 10px;
+            right: 20px;
+            background: #252526;
+            border: 1px solid #454545;
+            padding: 4px 8px;
+            z-index: 1000;
+            display: none;
+            align-items: center;
+            gap: 4px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.5);
+        }
+        #search-bar.active {
+            display: flex;
+        }
+        #search-input {
+            background: #3c3c3c;
+            border: 1px solid #3c3c3c;
+            color: #ccc;
+            font-size: 11px;
+            padding: 2px 6px;
+            width: 150px;
+            outline: none;
+        }
+        #search-input:focus {
+            border-color: #007acc;
+        }
+        .search-btn {
+            background: transparent;
+            border: none;
+            color: #aaa;
+            cursor: pointer;
+            padding: 2px 4px;
+            border-radius: 2px;
+            font-size: 10px;
+        }
+        .search-btn:hover {
+            background: #454545;
+            color: white;
         }
 
         #terminal-container {
             flex: 1;
             width: 100%;
             height: 100%;
+            background: #1e1e1e;
             overflow: hidden;
             position: relative;
             z-index: 2;
         }
 
-        /* H4CK3R Theme Styles */
-        .hacker-banner {
-            display: none;
-            background: #1a1b26;
-            padding: 15px 0;
-            border-bottom: 1px solid #ff00ff22;
-            text-align: center;
-            font-family: 'Fira Code', monospace;
-            user-select: none;
-        }
-        .theme-hacker .hacker-banner {
-            display: block;
-        }
-        .banner-text {
-            font-size: 42px;
-            font-weight: 900;
-            line-height: 1;
-            margin: 10px 0;
-            background: linear-gradient(180deg, #ff9e64 0%, #ff007c 50%, #7aa2f7 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            filter: drop-shadow(0 0 10px rgba(255, 0, 124, 0.4));
-            text-transform: uppercase;
-        }
-        .banner-ornament {
-            color: #565f89;
-            font-size: 14px;
-            letter-spacing: 2px;
-        }
-        
-        .extra-keys {
-            display: none;
-            background: #16161e;
-            padding: 5px;
-            gap: 5px;
-            overflow-x: auto;
-            border-top: 1px solid #252525;
-        }
-        .theme-hacker .extra-keys {
-            display: flex;
-        }
-        .key-btn {
-            background: #24283b;
-            color: #a9b1d6;
-            border: 1px solid #414868;
-            padding: 8px 15px;
-            border-radius: 4px;
-            font-size: 12px;
-            font-weight: 600;
-            cursor: pointer;
-            white-space: nowrap;
-            transition: all 0.2s;
-        }
-        .key-btn:hover {
-            background: #414868;
-            color: #fff;
-        }
-        .key-btn:active {
-            background: #7aa2f7;
-            transform: scale(0.95);
-        }
         .xterm .xterm-viewport {
-            background-color: #000 !important;
+            background-color: #1e1e1e !important;
         }
 
         .status-bar {
-            height: 24px;
-            background: #111;
-            color: #666;
-            font-size: 11px;
+            height: 22px;
+            background: #007acc;
+            color: #ffffff;
+            font-size: 12px;
             display: flex;
             align-items: center;
-            padding: 0 15px;
+            padding: 0 12px;
             font-family: var(--font-ui);
-            border-top: 1px solid var(--border);
+            border-top: none;
         }
-        .status-bar b { color: var(--accent); margin-right: 8px; font-family: var(--font-inter); font-size: 10px; }
+        .status-bar b { color: #ffffff; margin-right: 8px; font-weight: 700; font-size: 11px; }
         .status-dot {
             width: 8px;
             height: 8px;
@@ -367,25 +421,31 @@
     <div id="setup-view" class="view active">
         <div class="setup-pane">
             <div class="setup-form">
-                <h2>ReversX</h2>
-                <div class="field-row">
-                    <div class="field">
-                        <label>Host</label>
-                        <input type="text" id="host" value="127.0.0.1">
-                    </div>
-                    <div class="field port">
-                        <label>Port</label>
-                        <input type="number" id="port" value="8022">
-                    </div>
+                <h2>Settings</h2>
+                
+                <div class="field">
+                    <label>Host</label>
+                    <div class="description">The hostname or IP address of the terminal server.</div>
+                    <input type="text" id="host" value="127.0.0.1">
                 </div>
+
+                <div class="field">
+                    <label>Port</label>
+                    <div class="description">The communication port for connection (default is 8022 for Termux).</div>
+                    <input type="number" id="port" value="8022">
+                </div>
+
                 <div class="field">
                     <label>Username</label>
+                    <div class="description">The account name used for authentication.</div>
                     <input type="text" id="user" value="termux">
                 </div>
+
                 <div class="field">
                     <label>Password</label>
+                    <div class="description">The password for the user account.</div>
                     <div class="field-password">
-                        <input type="password" id="pass" placeholder="SSH Password">
+                        <input type="password" id="pass" placeholder="Password content">
                         <button type="button" class="toggle-password" onclick="togglePassword()" title="Toggle Password">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
@@ -394,13 +454,39 @@
                         </button>
                     </div>
                 </div>
+
                 <div class="field">
-                    <label>Persistent Token Check</label>
-                    <button class="action-btn" style="margin-top: 0; background: #222; color: #aaa; padding: 10px;" onclick="clearBrowsingSession()">Reset Local Link</button>
+                    <label>Terminal Font</label>
+                    <div class="description">Select your preferred terminal font family.</div>
+                    <div class="custom-select" id="font-custom-select">
+                        <div class="select-trigger" onclick="toggleFontDropdown(event)" id="current-font-label">JetBrains Mono</div>
+                        <div class="select-options" id="font-options-list">
+                            <div class="select-option" onclick="selectFontOption('\'JetBrains Mono\', monospace', 'JetBrains Mono')" data-value="'JetBrains Mono', monospace">JetBrains Mono</div>
+                            <div class="select-option" onclick="selectFontOption('\'Fira Code\', monospace', 'Fira Code')" data-value="'Fira Code', monospace">Fira Code</div>
+                            <div class="select-option" onclick="selectFontOption('\'Source Code Pro\', monospace', 'Source Code Pro')" data-value="'Source Code Pro', monospace">Source Code Pro</div>
+                            <div class="select-option" onclick="selectFontOption('\'Roboto Mono\', monospace', 'Roboto Mono')" data-value="'Roboto Mono', monospace">Roboto Mono</div>
+                            <div class="select-option" onclick="selectFontOption('\'Ubuntu Mono\', monospace', 'Ubuntu Mono')" data-value="'Ubuntu Mono', monospace">Ubuntu Mono</div>
+                            <div class="select-option" onclick="selectFontOption('\'Inconsolata\', monospace', 'Inconsolata')" data-value="'Inconsolata', monospace">Inconsolata</div>
+                            <div class="select-option" onclick="selectFontOption('\'Space Mono\', monospace', 'Space Mono')" data-value="'Space Mono', monospace">Space Mono</div>
+                            <div class="select-option" onclick="selectFontOption('\'Anonymous Pro\', monospace', 'Anonymous Pro')" data-value="'Anonymous Pro', monospace">Anonymous Pro</div>
+                            <div class="select-option" onclick="selectFontOption('\'Cascadia Code\', \'Consolas\', monospace', 'Cascadia Code')" data-value="'Cascadia Code', 'Consolas', monospace">Cascadia Code</div>
+                            <div class="select-option" onclick="selectFontOption('\'Consolas\', \'Monaco\', monospace', 'Consolas')" data-value="'Consolas', 'Monaco', monospace">Consolas</div>
+                        </div>
+                    </div>
                 </div>
-                <button class="action-btn" onclick="startSession()">Connect Session</button>
+
+                <div class="field">
+                    <label>Session: Management</label>
+                    <div class="description">Clear local session data if you encounter connection issues.</div>
+                    <button class="action-btn secondary" onclick="clearBrowsingSession()">Reset Local Link</button>
+                </div>
+
+                <div style="margin-top: 40px;">
+                    <button class="action-btn" onclick="startSession()">Connect Session</button>
+                </div>
+
                 <div class="guide">
-                    To ensure work persists even after disconnection, use <b>tmux</b> or <b>screen</b> on your remote server. <br><br>
+                    <b>Performance Tip:</b> To ensure work persists even after disconnection, use <b>tmux</b> or <b>screen</b> on your server. <br><br>
                     <b>Auto-Resume:</b> We save your session token locally. If you refresh or close the tab, we will try to reconnect automatically!
                 </div>
             </div>
@@ -409,97 +495,85 @@
 
     <!-- Terminal Tab -->
     <div id="terminal-view" class="view">
-        <div class="hacker-banner">
-            <div class="banner-ornament">╔═════════════════════════  »  ————  «•● ❊ ●»  ————  «  ═════════════════════════╗</div>
-            <div class="banner-text">H4CK3R</div>
-            <div class="banner-ornament">╚═══════════════════  ✦  :        『』  『+』  『』       :  ✦  ═══════════════════╝</div>
-        </div>
         <div class="terminal-toolbar">
-            <button class="toolbar-btn" onclick="copyTerminalText()" title="Copy entire buffer">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg>
-                Copy
-            </button>
-            <button class="toolbar-btn" onclick="pasteTerminalText()" title="Paste from clipboard">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><polyline points="8 17 12 21 16 17"></polyline><line x1="12" y1="12" x2="12" y2="21"></line></svg>
-                Paste
-            </button>
+            <button class="toolbar-btn" onclick="copyTerminalText()" title="Copy entire buffer">Copy</button>
+            <button class="toolbar-btn" onclick="pasteTerminalText()" title="Paste from clipboard">Paste</button>
             
-            <div style="width: 1px; height: 16px; background: #333; margin: 0 5px;"></div>
+            <div class="toolbar-separator"></div>
 
-            <button class="toolbar-btn" onclick="adjustFontSize(-1)" title="Decrease font size">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-                A-
-            </button>
-            <button class="toolbar-btn" onclick="adjustFontSize(1)" title="Increase font size">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-                A+
-            </button>
+            <button class="toolbar-btn" onclick="adjustFontSize(-1)" title="Decrease font size">A-</button>
+            <button class="toolbar-btn" onclick="adjustFontSize(1)" title="Increase font size">A+</button>
             
-            <button class="toolbar-btn" onclick="triggerManualResize()" title="Force layout refit">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6"></path><path d="M9 21H3v-6"></path><path d="M21 3l-7 7"></path><path d="M3 21l7-7"></path></svg>
-                Refit
-            </button>
-            <button class="toolbar-btn" onclick="toggleImmersive()" title="Toggle fullscreen immersive mode">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path></svg>
-                Immersive
-            </button>
-            <button class="toolbar-btn" onclick="openSearch()" title="Search in terminal">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-                Find
-            </button>
+            <div class="toolbar-separator"></div>
+
+            <button class="toolbar-btn" onclick="triggerManualResize()" title="Force layout refit">Refit</button>
+            <button class="toolbar-btn" onclick="toggleImmersive()" title="Toggle fullscreen immersive mode">Immersive</button>
+            <button class="toolbar-btn" onclick="openSearch()" title="Search in terminal">Find</button>
+
+            <div class="toolbar-separator"></div>
+
+            <button class="toolbar-btn" onclick="sendSpecial('CTRL_C')" title="Interrupt Current Process (Ctrl+C)">Ctrl+C</button>
+            <button class="toolbar-btn" onclick="sendSpecial('CTRL_L')" title="Clear Console (Ctrl+L)">Clear</button>
+            <button class="toolbar-btn" onclick="sendCmd('\x1b')" title="Send Escape Key">Esc</button>
+            <button class="toolbar-btn" onclick="sendCmd('\t')" title="Send Tab Key">Tab</button>
 
             <button class="toolbar-btn danger" style="margin-left: auto" onclick="disconnectSession()">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"></path><line x1="12" y1="2" x2="12" y2="12"></line></svg>
                 Exit
             </button>
         </div>
-        <div id="terminal-container"></div>
-        <div class="extra-keys">
-            <button class="key-btn" onclick="sendKey('/')">/</button>
-            <button class="key-btn" onclick="sendKey('ls\n')">LS</button>
-            <button class="key-btn" onclick="sendKey('$')">$</button>
-            <button class="key-btn" onclick="sendKey('~')">~</button>
-            <button class="key-btn" onclick="sendKey('\x1b[A')">↑</button>
-            <button class="key-btn" onclick="sendKey('\x03')">CTRL+C</button>
-            <button class="key-btn" onclick="sendKey('\x1b')">ESC</button>
-            <button class="key-btn" onclick="sendKey('exit\n')">EXIT</button>
-            <button class="key-btn" onclick="sendKey('*')">*</button>
-            <button class="key-btn" onclick="sendKey('clear\n')">CLEAR</button>
-            <button class="key-btn" onclick="sendKey('\t')">TAB</button>
+        <div id="terminal-container">
+            <div id="search-bar">
+                <input type="text" id="search-input" placeholder="Find">
+                <button class="search-btn" onclick="searchNext()" title="Next (Enter)">▼</button>
+                <button class="search-btn" onclick="searchPrev()" title="Previous (Shift+Enter)">▲</button>
+                <button class="search-btn" onclick="closeSearch()" title="Close (Esc)">✕</button>
+            </div>
+            <div id="terminal"></div>
         </div>
         <div class="status-bar">
             <div id="status-dot" class="status-dot"></div>
             <b>ENGINE</b> <span id="label-status">IDLE</span>
             <span style="margin-left: 15px;" id="label-info">NOT CONNECTED</span>
-            <span style="margin-left: auto; color: #444;" id="label-dims">-- x --</span>
+            <span style="margin-left: auto; color: rgba(255,255,255,0.7);" id="label-dims">-- x --</span>
         </div>
     </div>
 
     <script>
         const container = document.getElementById('terminal-container');
+        const terminalDiv = document.getElementById('terminal');
         const labelStatus = document.getElementById('label-status');
         const labelInfo = document.getElementById('label-info');
         const statusDot = document.getElementById('status-dot');
         const labelDims = document.getElementById('label-dims');
         
-        const THEME_HACKER = {
-            background: '#0d0f14', foreground: '#7aa2f7', cursor: '#ff007c', selectionBackground: 'rgba(255, 0, 124, 0.3)',
-            black: '#1a1b26', red: '#f7768e', green: '#9ece6a', yellow: '#e0af68', blue: '#7aa2f7', magenta: '#bb9af7', cyan: '#7dcfff', white: '#a9b1d6',
-            brightBlack: '#414868', brightRed: '#ff9e64', brightGreen: '#b4f9f8', brightYellow: '#f0c674', brightBlue: '#2ac3de', brightMagenta: '#ff007c', brightCyan: '#73daca', brightWhite: '#c0caf5'
-        };
-
-        function sendKey(key) {
-            if (ws && ws.readyState === 1) {
-                ws.send(key);
-                term.focus();
-            }
-        }
-
-        // Initialize Xterm.js with permanent H4CK3R theme
+        // Initialize Xterm.js with VS Code Default Dark Theme colors
         const term = new window.Terminal({
             cursorBlink: true,
             convertEol: true,
-            theme: THEME_HACKER,
+            allowProposedApi: true,
+            drawBoldTextInBrightColors: true,
+            theme: {
+                background: '#1e1e1e',
+                foreground: '#cccccc',
+                cursor: '#aeafad',
+                selectionBackground: '#264f78',
+                black: '#000000',
+                red: '#cd3131',
+                green: '#0dbc79',
+                yellow: '#e5e510',
+                blue: '#2472c8',
+                magenta: '#bc3fbc',
+                cyan: '#11a8cd',
+                white: '#e5e5e5',
+                brightBlack: '#666666',
+                brightRed: '#f14c4c',
+                brightGreen: '#23d18b',
+                brightYellow: '#f5f543',
+                brightBlue: '#3b8eea',
+                brightMagenta: '#d670d6',
+                brightCyan: '#29b8db',
+                brightWhite: '#e5e5e5'
+            },
             fontSize: 14,
             fontFamily: '"JetBrains Mono", "Fira Code", "Cascadia Code", monospace',
             letterSpacing: 0.5,
@@ -508,7 +582,7 @@
         });
 
         window.addEventListener('DOMContentLoaded', () => {
-            document.getElementById('terminal-view').classList.add('theme-hacker');
+            // No theme-specific class needed
         });
 
         const fitAddon = new window.FitAddon.FitAddon();
@@ -517,10 +591,20 @@
         term.loadAddon(fitAddon);
         term.loadAddon(webLinksAddon);
         term.loadAddon(searchAddon);
-        term.open(container);
+        term.open(terminalDiv);
         
         // Handle initial fit
         setTimeout(() => fitAddon.fit(), 100);
+
+        // Ctrl+F to open search
+        term.attachCustomKeyEventHandler((e) => {
+            if (e.ctrlKey && e.key === 'f') {
+                e.preventDefault();
+                openSearch();
+                return false;
+            }
+            return true;
+        });
 
         let ws = null;
         let heartbeatInterval = null;
@@ -534,6 +618,12 @@
                     document.getElementById('host').value = data.host || '';
                     document.getElementById('port').value = data.port || '8022';
                     document.getElementById('user').value = data.user || '';
+                    if (data.terminalFont) {
+                        const option = document.querySelector(`.select-option[data-value="${data.terminalFont}"]`);
+                        if (option) {
+                            selectFontOption(data.terminalFont, option.innerText, false);
+                        }
+                    }
                 } catch (e) {}
             }
         });
@@ -583,8 +673,41 @@
         }
 
         function openSearch() {
-            const q = prompt("Enter search query:");
-            if (q) searchAddon.findNext(q);
+            const bar = document.getElementById('search-bar');
+            const input = document.getElementById('search-input');
+            bar.classList.add('active');
+            input.focus();
+            input.select();
+            
+            // Handle search as you type or on Enter
+            input.oninput = () => {
+                if (input.value) searchAddon.findNext(input.value, { incremental: true });
+            };
+            
+            input.onkeydown = (e) => {
+                if (e.key === 'Enter') {
+                    if (e.shiftKey) searchAddon.findPrevious(input.value);
+                    else searchAddon.findNext(input.value);
+                } else if (e.key === 'Escape') {
+                    closeSearch();
+                }
+            };
+        }
+
+        function closeSearch() {
+            const bar = document.getElementById('search-bar');
+            bar.classList.remove('active');
+            term.focus();
+        }
+
+        function searchNext() {
+            const input = document.getElementById('search-input');
+            if (input.value) searchAddon.findNext(input.value);
+        }
+
+        function searchPrev() {
+            const input = document.getElementById('search-input');
+            if (input.value) searchAddon.findPrevious(input.value);
         }
 
         window.addEventListener('resize', () => {
@@ -598,13 +721,75 @@
             triggerManualResize();
         }
 
-        function triggerManualResize() {
-            fitAddon.fit();
-            labelDims.innerText = `${term.cols} x ${term.rows}`;
-            if (ws?.readyState === 1) {
-                ws.send(JSON.stringify({ type: 'resize', cols: term.cols, rows: term.rows }));
+        function toggleFontDropdown(e) {
+            e.stopPropagation();
+            const list = document.getElementById('font-options-list');
+            list.classList.toggle('active');
+        }
+
+        function selectFontOption(value, label, updateStorage = true) {
+            document.getElementById('current-font-label').innerText = label;
+            document.getElementById('font-options-list').classList.remove('active');
+            
+            // Mark selected
+            document.querySelectorAll('.select-option').forEach(opt => {
+                opt.classList.toggle('selected', opt.getAttribute('data-value') === value);
+            });
+
+            term.options.fontFamily = value;
+            triggerManualResize();
+
+            if (updateStorage) {
+                const prefs = JSON.parse(localStorage.getItem('ssh_prefs') || '{}');
+                prefs.terminalFont = value;
+                localStorage.setItem('ssh_prefs', JSON.stringify(prefs));
             }
         }
+
+        // Close dropdowns on click outside
+        window.onclick = function(event) {
+            if (!event.target.closest('.custom-select')) {
+                document.querySelectorAll('.select-options').forEach(list => list.classList.remove('active'));
+            }
+        };
+
+        function sendCmd(cmd) {
+            if (ws?.readyState === 1) {
+                ws.send(JSON.stringify({ type: 'input', data: cmd }));
+            }
+            term.focus();
+        }
+
+        function sendSpecial(key) {
+            const keys = {
+                'CTRL_C': '\x03',
+                'CTRL_L': '\x0c',
+                'CTRL_Z': '\x1a',
+                'CTRL_D': '\x04'
+            };
+            if (keys[key]) sendCmd(keys[key]);
+        }
+
+        function triggerManualResize() {
+            if (!container) return;
+            try {
+                fitAddon.fit();
+                if (term.cols > 0 && term.rows > 0) {
+                    labelDims.innerText = `${term.cols} x ${term.rows}`;
+                    if (ws?.readyState === 1) {
+                        ws.send(JSON.stringify({ type: 'resize', cols: term.cols, rows: term.rows }));
+                    }
+                }
+            } catch (e) {
+                console.warn("Resize fit failed:", e);
+            }
+        }
+
+        // Use ResizeObserver for more reliable fitting
+        const resizeObserver = new ResizeObserver(() => {
+            triggerManualResize();
+        });
+        resizeObserver.observe(container);
 
         function disconnectSession() {
             if (ws) ws.close();
@@ -612,7 +797,7 @@
         }
 
         function clearBrowsingSession() {
-            if (confirm("This will permanently clear your session token on this device. Your remote SSH/Tmux session will persist. Continue?")) {
+            if (confirm("This will permanently clear your session token on this device. Your terminal session will persist. Continue?")) {
                 localStorage.removeItem('ssh_active_session');
                 disconnectSession();
                 term.reset();

@@ -153,7 +153,14 @@ class PTYSession {
         term: 'xterm-256color',
         rows: parseInt(cfg.rows) || 24,
         cols: parseInt(cfg.cols) || 80,
-        env: cfg.env || {}
+        env: {
+          TERM: 'xterm-256color',
+          COLORTERM: 'truecolor',
+          LANG: 'en_US.UTF-8',
+          LC_ALL: 'en_US.UTF-8',
+          FORCE_COLOR: '3',
+          ...(cfg.env || {})
+        }
       }, (err, stream) => {
         if (err) {
           logger.error(`[${this.id}] Shell error:`, err);
