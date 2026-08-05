@@ -31,7 +31,7 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
         with:
-          gradle-version: '8.12.1'
+          gradle-version: '8.14.3'
 
       - name: Build Web Assets & Sync Capacitor
         run: |
@@ -42,8 +42,9 @@ jobs:
       - name: Build Debug APK
         run: |
           cd android
+          gradle wrapper --gradle-version 8.14.3
           chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon || gradle assembleDebug --no-daemon
+          ./gradlew assembleDebug --no-daemon
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
