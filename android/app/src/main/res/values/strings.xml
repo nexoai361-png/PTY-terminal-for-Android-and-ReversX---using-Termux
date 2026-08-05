@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">SSH PTY Terminal</string>
+    <string name="title_activity_main">SSH PTY Terminal</string>
+    <string name="package_name">com.sshpty.terminal</string>
+    <string name="custom_url_scheme">com.sshpty.terminal</string>
+</resources>
