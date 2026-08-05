@@ -43,7 +43,7 @@ jobs:
       - name: Build Android Debug APK
         run: |
           cd android
-          gradle wrapper
+          gradle wrapper --gradle-version 8.12.1
           chmod +x gradlew
           ./gradlew assembleDebug --stacktrace
 
