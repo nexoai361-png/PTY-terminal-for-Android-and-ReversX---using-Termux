@@ -5,8 +5,8 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node server.js",
-    "build": "mkdir -p www && cp index.html www/",
-    "tauri": "tauri"
+    "build": "mkdir -p www && cp index.html www/ && cp app-icon.png www/",
+    "cordova": "cordova"
   },
   "dependencies": {
     "express": "^4.21.2",
@@ -14,7 +14,6 @@
     "ws": "^8.18.0"
   },
   "devDependencies": {
-    "@tauri-apps/api": "2.0.0",
-    "@tauri-apps/cli": "2.0.0"
+    "cordova": "^12.0.0"
   }
 }
