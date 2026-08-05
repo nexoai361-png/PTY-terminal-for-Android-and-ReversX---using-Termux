@@ -39,11 +39,13 @@ jobs:
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: '8.12.1'
 
       - name: Build Android Debug APK
         run: |
           cd android
-          gradle wrapper --gradle-version 8.12.1
+          gradle wrapper
           chmod +x gradlew
           ./gradlew assembleDebug --stacktrace
 
