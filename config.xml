@@ -18,5 +18,7 @@
     <platform name="android">
         <allow-intent href="market:*" />
         <icon src="www/app-icon.png" />
+        <preference name="AndroidWindowSplashScreenAnimatedIcon" value="www/splash-icon.png" />
+        <preference name="AndroidWindowSplashScreenBackground" value="#1E1E1E" />
     </platform>
 </widget>
