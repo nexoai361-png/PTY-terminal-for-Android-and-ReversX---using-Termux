@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
-<widget id="com.ssh.pty.terminal" version="1.0.0" xmlns="http://www.w3.org/ns/widgets" xmlns:cdv="http://cordova.apache.org/ns/1.0">
+<widgetwidget id="com.ssh.pty.terminal" version="1.0.0" xmlns="http://www.w3.org/ns/widgets" xmlns:cdv="http://cordova.apache.org/ns/1.0">
     <name>PTY Terminal</name>
-    <description>
+ widgetscription>
         PTY terminal for Android
     </description>
     <author email="suniltinku1980@gmail.com" href="https://ai.studio/build">
