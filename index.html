@@ -678,6 +678,23 @@
         .status-dot.error { background: #ff5555; }
         .status-dot.connecting { background: #f1fa8c; }
 
+        /* Animation classes */
+        .anim-fade-in {
+            animation: fadeInAnim 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+        @keyframes fadeInAnim {
+            from { opacity: 0; transform: scale(0.985); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        .anim-pulse-glow {
+            animation: pulseGlowAnim 2s infinite ease-in-out;
+        }
+        @keyframes pulseGlowAnim {
+            0%, 100% { box-shadow: inset 0 0 8px rgba(0, 122, 204, 0.15); border-color: var(--border); }
+            50% { box-shadow: inset 0 0 20px rgba(0, 122, 204, 0.45); border-color: var(--accent); }
+        }
+
     </style>
 </head>
 <body>
@@ -762,6 +779,19 @@
                             <div class="select-option" onclick="selectTheme('gruvbox', 'Gruvbox Dark')" data-value="gruvbox">Gruvbox Dark</div>
                             <div class="select-option" onclick="selectTheme('catppuccin', 'Catppuccin Mocha')" data-value="catppuccin">Catppuccin Mocha</div>
                             <div class="select-option" onclick="selectTheme('cyberpunk', 'Cyberpunk')" data-value="cyberpunk">Cyberpunk</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="field">
+                    <label>Terminal Animation</label>
+                    <div class="description">Select an animation style for the terminal interface.</div>
+                    <div class="custom-select" id="animation-custom-select">
+                        <div class="select-trigger" onclick="toggleAnimationDropdown(event)" id="current-animation-label">None</div>
+                        <div class="select-options" id="animation-options-list">
+                            <div class="select-option selected" onclick="selectAnimation('none', 'None')" data-value="none">None</div>
+                            <div class="select-option" onclick="selectAnimation('fade-in', 'Subtle Fade In')" data-value="fade-in">Subtle Fade In</div>
+                            <div class="select-option" onclick="selectAnimation('pulse-glow', 'Terminal Pulse Glow')" data-value="pulse-glow">Terminal Pulse Glow</div>
                         </div>
                     </div>
                 </div>
@@ -1092,6 +1122,12 @@
                     if (typeof data.wordWrap === 'boolean') {
                         toggleWordWrap(data.wordWrap, false);
                     }
+                    if (data.terminalAnimation) {
+                        const option = document.querySelector(`#animation-options-list .select-option[data-value="${data.terminalAnimation}"]`);
+                        if (option) {
+                            selectAnimation(data.terminalAnimation, option.innerText, false);
+                        }
+                    }
                 } catch (e) {}
             }
         });
@@ -1142,6 +1178,9 @@
             } else {
                 document.getElementById('terminal-view').classList.add('active');
                 document.querySelector('.tab:nth-child(2)').classList.add('active');
+                if (typeof applySelectedAnimation === 'function') {
+                    applySelectedAnimation();
+                }
                 setTimeout(() => {
                     triggerManualResize();
                     term.focus();
@@ -1377,6 +1416,53 @@
                 const prefs = JSON.parse(localStorage.getItem('ssh_prefs') || '{}');
                 prefs.terminalFont = value;
                 localStorage.setItem('ssh_prefs', JSON.stringify(prefs));
+            }
+        }
+
+        let selectedAnimationType = 'none';
+
+        function toggleAnimationDropdown(e) {
+            e.stopPropagation();
+            document.querySelectorAll('.select-options').forEach(l => {
+                if (l.id !== 'animation-options-list') l.classList.remove('active');
+            });
+            const list = document.getElementById('animation-options-list');
+            if (list) list.classList.toggle('active');
+        }
+
+        function selectAnimation(value, label, updateStorage = true) {
+            const labelEl = document.getElementById('current-animation-label');
+            if (labelEl) labelEl.innerText = label;
+            
+            const list = document.getElementById('animation-options-list');
+            if (list) list.classList.remove('active');
+            
+            selectedAnimationType = value;
+
+            document.querySelectorAll('#animation-options-list .select-option').forEach(opt => {
+                opt.classList.toggle('selected', opt.getAttribute('data-value') === value);
+            });
+
+            applySelectedAnimation();
+
+            if (updateStorage) {
+                const prefs = JSON.parse(localStorage.getItem('ssh_prefs') || '{}');
+                prefs.terminalAnimation = value;
+                localStorage.setItem('ssh_prefs', JSON.stringify(prefs));
+            }
+        }
+
+        function applySelectedAnimation() {
+            const container = document.getElementById('terminal-container');
+            if (!container) return;
+
+            container.classList.remove('anim-fade-in', 'anim-pulse-glow');
+
+            if (selectedAnimationType === 'fade-in') {
+                container.offsetHeight; // Force reflow
+                container.classList.add('anim-fade-in');
+            } else if (selectedAnimationType === 'pulse-glow') {
+                container.classList.add('anim-pulse-glow');
             }
         }
 
